@@ -31,7 +31,7 @@ function dateLabel(value: number): string {
 function errorMessage(cause: unknown, fallback: string): string {
   const message = cause instanceof Error ? cause.message : fallback;
   return /failed to fetch|networkerror|\b429\b|rate.?limit|StudioNet RPC is temporarily unreachable/i.test(message)
-    ? "StudioNet is temporarily unreachable or rate-limited. Wait a few minutes, then retry the catalog; do not repeat a pending transaction."
+    ? "StudioNet is temporarily unreachable or rate-limited. Wait a few minutes, then use the relevant retry or resume control; do not repeat a pending transaction."
     : message;
 }
 
@@ -329,7 +329,11 @@ export default function App() {
       case "request":
       case "respond":
         setPermission(result.permission);
-        setNotice(result.kind === "request" ? "Your request is on-chain. Copy the check link and send it to the publisher; this app does not notify them." : "Your response is on-chain.");
+        setNotice(result.kind === "request"
+          ? result.permission.status === "PENDING"
+            ? "Your request is on-chain. Copy the check link and send it to the publisher; this app does not notify them."
+            : "Your request and the publisher's response are on-chain."
+          : "Your response is on-chain.");
         break;
     }
   }
@@ -492,7 +496,7 @@ export default function App() {
                     <label>Describe the exact use<textarea value={description} onChange={(event) => setDescription(event.target.value)} minLength={20} maxLength={360} rows={3} placeholder="Explain what you will publish, who will see it, and any payment or promotion involved." required /></label>
                     <div className="form-bottom"><p>GenLayer will compare your plan to terms v{selectedLicense.version}. A result is advisory, not legal clearance.</p><button type="submit" className="button button--accent" disabled={writeDisabled || !wallet || description.trim().length < 20 || !channel.trim()}>{busy ? "Checking…" : "Check my use ↗"}</button></div>
                   </form>
-                </> : <div className="empty-state empty-state--detail"><CompassMark /><h3>{selectedWork ? `Reading terms for ${selectedWork.title}` : "Select a work to see its terms."}</h3><p>{licenseLoadError || "Each check is tied to a specific published version."}</p>{selectedWork && licenseLoadError ? <button type="button" className="button button--dark" onClick={() => setLicenseRetry((count) => count + 1)}>Retry terms ↻</button> : null}</div>}
+                </> : <div className="empty-state empty-state--detail"><CompassMark /><h3>{selectedWork ? licenseLoadError ? "Terms temporarily unavailable." : `Reading terms for ${selectedWork.title}` : "Select a work to see its terms."}</h3><p>{licenseLoadError || "Each check is tied to a specific published version."}</p>{selectedWork && licenseLoadError ? <button type="button" className="button button--dark" onClick={() => setLicenseRetry((count) => count + 1)}>Retry terms ↻</button> : null}</div>}
               </div>
             </div>
           ) : (
