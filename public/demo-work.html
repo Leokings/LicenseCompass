@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Northbound — License Compass demo work</title>
+    <style>
+      :root { color-scheme: light; font-family: Georgia, serif; background: #f6f0e5; color: #1b382d; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 32px; }
+      main { width: min(100%, 780px); padding: clamp(30px, 8vw, 74px); border: 2px solid #26483b; background: #fff9ed; box-shadow: 16px 16px 0 #edbe8d; text-align: center; }
+      .eyebrow { font: 700 12px/1.4 system-ui, sans-serif; letter-spacing: .18em; text-transform: uppercase; color: #ae6445; }
+      .sun { width: min(60vw, 290px); aspect-ratio: 1; border-radius: 50%; margin: 36px auto; display: grid; place-items: center; border: 2px solid #26483b; background: radial-gradient(circle, #f7d38e 0 22%, #f5e4bc 22% 38%, #fff9ed 38% 39%, #ebc99e 39% 60%, #f7ead3 60%); position: relative; }
+      .sun::before, .sun::after { content: ""; position: absolute; width: 0; height: 0; left: 50%; transform: translateX(-50%); border-left: 24px solid transparent; border-right: 24px solid transparent; }
+      .sun::before { top: 27px; border-bottom: 111px solid #e77355; }
+      .sun::after { bottom: 27px; border-top: 111px solid #1b4b3a; }
+      .star { z-index: 1; width: 50px; height: 50px; border: 2px solid #26483b; border-radius: 50%; background: #f8cf7a; display: grid; place-items: center; font-size: 28px; }
+      h1 { font-size: clamp(42px, 7vw, 72px); line-height: .95; margin: 0; font-weight: normal; }
+      p { font: 15px/1.6 system-ui, sans-serif; max-width: 480px; margin: 24px auto 0; }
+      small { display: block; font: 11px/1.5 system-ui, sans-serif; color: #596a62; margin-top: 36px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">An original License Compass practice work</div>
+      <div class="sun" role="img" aria-label="A coral and forest-green compass needle against a warm gold circle"><span class="star" aria-hidden="true">✦</span></div>
+      <h1>Northbound</h1>
+      <p>A small illustrated compass made for testing specific reuse questions. Its publisher-declared terms are on License Compass; this page itself is only the work being referenced.</p>
+      <small>Demo illustration · 2026 · No claim that the app verifies legal ownership</small>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "name": "license-compass",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": "24.x" },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5174",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4174",
+    "test:web": "vitest run",
+    "contract:lint": "genvm-lint check contracts/license_compass.py --json",
+    "contract:typecheck": "genvm-lint typecheck contracts/license_compass.py --json",
+    "contract:test": "pytest tests/direct -q",
+    "contract:sim": "python tests/run_glsim.py --port 4000 --validators 5 --no-browser",
+    "contract:test:integration": "gltest tests/integration/test_license_compass_glsim.py -v -s --network localnet",
+    "verify": "npm run contract:lint && npm run contract:typecheck && npm run contract:test && npm run test:web && npm run build"
+  },
+  "dependencies": {
+    "genlayer-js": "1.1.8",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "viem": "2.55.17"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "typescript": "5.9.3",
+    "vite": "8.2.2",
+    "vitest": "5.0.1"
+  }
+}
