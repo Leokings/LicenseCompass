@@ -1,5 +1,5 @@
 const DEFAULT_RPC_URL = "https://studio.genlayer.com/api";
-const DEFAULT_CONTRACT_ADDRESS = "0xe7A57dE336f6eA04154cC55eFa334F89301f2287";
+const DEFAULT_CONTRACT_ADDRESS = "0xc7e4B4015dC4759Fc47ec78172a96b84f6ce2Ac0";
 
 export const WALLET_RPC_URL = DEFAULT_RPC_URL;
 export const RPC_URL = import.meta.env.VITE_GENLAYER_RPC_URL?.trim() ||

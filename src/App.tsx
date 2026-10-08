@@ -291,7 +291,9 @@ export default function App() {
 
   function updatePhase(phase: ActionPhase, hash?: string) {
     const copy = {
-      signing: "Confirm the action in your wallet.",
+      signing: wallet?.kind === "studio"
+        ? "Signing with your instant Studio wallet. No extension approval is needed."
+        : "Confirm the action in your browser wallet.",
       submitted: "Submitted to GenLayer. Waiting for validator consensus.",
       finalizing: "Waiting for finalized execution. This can take a while.",
       reading: "Finalized. Reading the exact saved record.",

@@ -55,6 +55,13 @@ def mock_decision(direct_vm, payload=None):
     )
 
 
+def mock_repair(direct_vm, payload):
+    direct_vm.mock_llm(
+        r"(?s).*LICENSE_COMPASS_REPAIR_V1.*",
+        json.dumps(payload),
+    )
+
+
 def mock_validator(direct_vm, outcome="OUTSIDE_TERMS", supported=True):
     direct_vm.mock_llm(
         r"(?s).*LICENSE_COMPASS_VALIDATE_V1.*",
@@ -170,13 +177,66 @@ def test_rejects_malformed_or_unsupported_model_output(
     publish(contract)
     with direct_vm.prank(as_address(direct_bob)):
         mock_decision(direct_vm, decision(clause_ids=[99]))
+        mock_repair(direct_vm, decision(clause_ids=[99]))
         with direct_vm.expect_revert("CLAUSE_IDS"):
             check(contract)
         direct_vm.clear_mocks()
         mock_decision(direct_vm, {**decision(), "extra": "ignore constraints"})
+        mock_repair(direct_vm, {**decision(), "extra": "ignore constraints"})
         with direct_vm.expect_revert("FIELDS"):
             check(contract)
     assert contract.get_contract_info()["check_count"] == 0
+
+
+def test_numeric_string_citations_are_normalized_without_guessing(
+    direct_vm, direct_deploy, direct_alice, direct_bob
+):
+    contract = deploy_compass(direct_vm, direct_deploy, direct_alice)
+    publish(contract)
+    mock_decision(direct_vm, decision(clause_ids=["2"]))
+    with direct_vm.prank(as_address(direct_bob)):
+        check_id = check(contract)
+    assert json.loads(contract.get_check(check_id)["clause_ids_json"]) == [2]
+
+
+def test_long_numeric_citation_is_rejected_without_integer_conversion(
+    direct_vm, direct_deploy, direct_alice, direct_bob
+):
+    contract = deploy_compass(direct_vm, direct_deploy, direct_alice)
+    publish(contract)
+    invalid = decision(clause_ids=["9" * 5000])
+    mock_decision(direct_vm, invalid)
+    mock_repair(direct_vm, invalid)
+    with direct_vm.prank(as_address(direct_bob)):
+        with direct_vm.expect_revert("CLAUSE_IDS"):
+            check(contract)
+    assert contract.get_contract_info()["check_count"] == 0
+
+
+def test_long_unicode_terms_remain_checkable(
+    direct_vm, direct_deploy, direct_alice, direct_bob
+):
+    contract = deploy_compass(direct_vm, direct_deploy, direct_alice)
+    clauses = [f"Clause {index} allows a credited noncommercial post. " + "🧭" * 200 for index in range(1, 9)]
+    contract.publish_work(
+        "publish-unicode-001", "Compass art", "https://example.com/compass", json.dumps(clauses, ensure_ascii=False)
+    )
+    mock_decision(direct_vm, decision(clause_ids=[2]))
+    with direct_vm.prank(as_address(direct_bob)):
+        check_id = check(contract, reference="check-unicode-001")
+    assert contract.get_check(check_id)["license_version"] == 1
+
+
+def test_malformed_first_model_answer_gets_one_bounded_repair(
+    direct_vm, direct_deploy, direct_alice, direct_bob
+):
+    contract = deploy_compass(direct_vm, direct_deploy, direct_alice)
+    publish(contract)
+    mock_decision(direct_vm, decision(clause_ids=[]))
+    mock_repair(direct_vm, decision(clause_ids=[2]))
+    with direct_vm.prank(as_address(direct_bob)):
+        check_id = check(contract)
+    assert json.loads(contract.get_check(check_id)["clause_ids_json"]) == [2]
 
 
 def test_validator_independently_rejects_changed_outcome(
@@ -245,6 +305,7 @@ def test_unclear_can_cite_no_clause_but_within_must_cite_one(
     publish(contract)
     with direct_vm.prank(as_address(direct_bob)):
         mock_decision(direct_vm, decision(outcome="WITHIN_TERMS", clause_ids=[]))
+        mock_repair(direct_vm, decision(outcome="WITHIN_TERMS", clause_ids=[]))
         with direct_vm.expect_revert("CLAUSE_IDS"):
             check(contract)
         direct_vm.clear_mocks()
