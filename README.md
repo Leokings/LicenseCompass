@@ -13,6 +13,8 @@ This is an interpretation aid, **not** proof that the publishing wallet owns the
 
 For a first visit, open the app, select a published work, read its current numbered terms, connect an instant Studio wallet or a StudioNet-compatible browser wallet, describe **your own** intended use, and submit a check. Wait for FINALIZED and inspect the saved receipt. If the result is outside or unclear, the requester can ask the publishing wallet for permission. Publishers can connect a wallet, publish a public HTTPS work and one clause per line, and later publish a new version without overwriting old assessments.
 
+Permission requests do **not** send a notification to the publisher. After requesting, use **Copy check link** on the receipt and send it to the publishing wallet holder; they can open that link, connect the publishing wallet, and respond. If a terms or receipt read is temporarily rate-limited, use its section's retry button. A rejected browser-wallet signature is not treated as a pending on-chain transaction.
+
 The practice work is a small illustration created for this demo and is now published as work #1. It is not a claim that License Compass verifies ownership.
 
 ## Verified StudioNet trail
@@ -42,6 +44,7 @@ npm run verify
 - A publisher-only version change cannot rewrite earlier terms. Checks pin the current version and its digest.
 - Only GenLayer's contract judgment can set an outcome; the browser cannot submit its own verdict. Validators independently assess the same terms/use and support for the leader's citation.
 - Duplicate publication/check references are rejected. The frontend saves each write intent *before* broadcasting. If the RPC never returns a hash, it first checks exact finalized state and only offers an identical retry after a delay; the contract's one-shot transitions prevent duplicate effects.
+- Exact license-version reads are reused between the workbench and a check receipt, and an older check link selects its own work rather than leaving a different work visible. If the recent-check list fails to load, the work catalog and direct check lookup remain usable.
 - Permission requests are requester-only and one per check; only the publishing wallet may respond. The response never changes the original check digest.
 - Work URLs are pointers; the contract does **not** fetch and authenticate their contents. It cannot prove ownership, third-party rights, fair use, actual subsequent use, or legal enforceability. Ambiguous language can still produce an imperfect AI assessment.
 - StudioNet's public RPC can rate-limit requests. The same-origin Vercel relay restricts methods, request size, and origin, and surfaces upstream HTTP failures; it is a demo relay, not production-grade abuse protection. A transaction that is already pending must be resumed, not repeated.

@@ -11,13 +11,14 @@ import { getAddress, hexToBytes, isAddress } from "viem";
 import type { ConnectedWallet, ContractInfo, LicenseVersion, PermissionRequest, UseCheck, UseKind, WalletKind, Work } from "../types";
 import { CONTRACT_ADDRESS, isContractConfigured, RPC_URL, WALLET_RPC_URL } from "./config";
 import { normalizeAssetUrl, parseContractInfo, parseLicense, parsePermission, parseUseCheck, parseWork } from "./records";
-import { classifyTransaction } from "./transaction";
+import { classifyTransaction, isExplicitWalletRejection } from "./transaction";
 
 const STUDIO_SESSION_KEY = "license-compass:v1:studio-key";
 const PENDING_KEY = "license-compass:v1:pending-action";
 
 const chain = { ...studionet, rpcUrls: { default: { http: [RPC_URL] } } } as const;
 const readClient = createClient({ chain, endpoint: RPC_URL });
+const licenseReads = new Map<string, Promise<LicenseVersion>>();
 
 type ClientConfig = NonNullable<Parameters<typeof createClient>[0]>;
 type WalletProvider = NonNullable<ClientConfig["provider"]>;
@@ -213,7 +214,17 @@ export async function getWork(workId: number): Promise<Work> {
 }
 
 export async function getLicense(workId: number, version = 0): Promise<LicenseVersion> {
-  return parseLicense(await read("get_license", [BigInt(workId), BigInt(version)]));
+  // Explicit versions are immutable. Share in-flight reads between the workbench
+  // and receipt, which otherwise make duplicate RPC calls on a check deep link.
+  if (version === 0) return parseLicense(await read("get_license", [BigInt(workId), 0n]));
+  const key = `${workId}:${version}`;
+  const existing = licenseReads.get(key);
+  if (existing) return existing;
+  const result = read("get_license", [BigInt(workId), BigInt(version)])
+    .then(parseLicense)
+    .catch((cause) => { licenseReads.delete(key); throw cause; });
+  licenseReads.set(key, result);
+  return result;
 }
 
 export async function getRecentChecks(limit = 12): Promise<UseCheck[]> {
@@ -273,6 +284,8 @@ export function getPendingAction(): PendingAction | null {
     if ((value.kind === "request" || value.kind === "respond") &&
         (args[0] !== BigInt(Number(value.checkId)) ||
          args[value.kind === "request" ? 1 : 2] !== value.expectedNote)) return null;
+    if (value.kind === "request" && value.expectedStatus !== "PENDING") return null;
+    if (value.kind === "respond" && value.expectedStatus === "PENDING") return null;
     if (value.kind === "respond" && args[1] !== (value.expectedStatus === "APPROVED")) return null;
     return value as PendingAction;
   } catch {
@@ -282,6 +295,20 @@ export function getPendingAction(): PendingAction | null {
 
 function forgetPending(intentId: string): void {
   if (getPendingAction()?.intentId === intentId) window.sessionStorage.removeItem(PENDING_KEY);
+}
+
+export function permissionReadbackMatches(
+  kind: "request" | "respond", address: string, expectedStatus: string, expectedNote: string,
+  permission: PermissionRequest,
+): boolean {
+  if (kind === "request") {
+    // A publisher may answer before the requester resumes a delayed readback.
+    // The immutable request note and requester still prove the request landed.
+    return permission.status !== "NONE" && permission.requester?.toLowerCase() === address.toLowerCase() &&
+      permission.requestNote === expectedNote;
+  }
+  return permission.publisher?.toLowerCase() === address.toLowerCase() &&
+    permission.status === expectedStatus && permission.responseNote === expectedNote;
 }
 
 async function successfulFinality(hash: TransactionHash): Promise<void> {
@@ -329,12 +356,7 @@ async function readCompleted(pending: PendingAction): Promise<CompletedAction> {
     case "request":
     case "respond": {
       const permission = await getPermissionRequest(pending.checkId!);
-      const authorizedAddress = pending.kind === "request" ? permission.requester : permission.publisher;
-      if (authorizedAddress?.toLowerCase() !== pending.address.toLowerCase()) {
-        throw new Error("The permission record belongs to a different wallet.");
-      }
-      if (permission.status !== pending.expectedStatus ||
-          (pending.kind === "request" ? permission.requestNote : permission.responseNote) !== pending.expectedNote) {
+      if (!permissionReadbackMatches(pending.kind, pending.address, pending.expectedStatus!, pending.expectedNote!, permission)) {
         throw new Error("The permission record does not match this submission yet.");
       }
       return { kind: pending.kind, hash: pending.hash, permission };
@@ -436,9 +458,15 @@ async function submitAction(
   };
   window.sessionStorage.setItem(PENDING_KEY, JSON.stringify(action));
   onUpdate?.("signing");
-  const hash = asHash(await client.writeContract({
-    address: address(), functionName, args, leaderOnly: false, value: 0n,
-  }));
+  let hash: TransactionHash;
+  try {
+    hash = asHash(await client.writeContract({
+      address: address(), functionName, args, leaderOnly: false, value: 0n,
+    }));
+  } catch (cause) {
+    if (isExplicitWalletRejection(cause)) forgetPending(action.intentId);
+    throw cause;
+  }
   window.sessionStorage.setItem(PENDING_KEY, JSON.stringify({ ...action, hash }));
   onUpdate?.("submitted", hash);
   return resumePendingAction(onUpdate);

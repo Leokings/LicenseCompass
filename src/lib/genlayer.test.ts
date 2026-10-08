@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CONTRACT_ADDRESS } from "./config";
-import { getPendingAction } from "./genlayer";
+import { getPendingAction, permissionReadbackMatches } from "./genlayer";
 
 const base = {
   kind: "terms",
@@ -50,5 +50,19 @@ describe("pending StudioNet readback", () => {
   it("retains a pre-broadcast intent when the RPC returns no hash", () => {
     stored({ ...base, hash: "" });
     expect(getPendingAction()?.hash).toBe("");
+  });
+
+  it("recognizes a request even after the publisher answers it", () => {
+    const permission = {
+      checkId: 4, status: "APPROVED" as const,
+      requester: base.address, publisher: `0x${"4".repeat(40)}`,
+      requestNote: "Please approve this exact use.", responseNote: "Approved for this use.",
+      requestedAt: 10, respondedAt: 20,
+    };
+    expect(permissionReadbackMatches("request", base.address, "PENDING", "Please approve this exact use.", permission)).toBe(true);
+    expect(permissionReadbackMatches("request", base.address, "PENDING", "A different request.", permission)).toBe(false);
+    expect(permissionReadbackMatches("request", `0x${"5".repeat(40)}`, "PENDING", permission.requestNote, permission)).toBe(false);
+    expect(permissionReadbackMatches("respond", permission.publisher, "APPROVED", permission.responseNote, permission)).toBe(true);
+    expect(permissionReadbackMatches("respond", permission.publisher, "DECLINED", permission.responseNote, permission)).toBe(false);
   });
 });
